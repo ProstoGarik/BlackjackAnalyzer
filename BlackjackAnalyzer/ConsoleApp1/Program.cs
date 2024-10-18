@@ -40,38 +40,26 @@ namespace ConsoleApp1
             {
                 List<Card> deck = new List<Card>();
                 deck = ResetDeck(deck);
-                score = 0;
+                int score = 0;
                 bestScoreToEndArr = new List<float>();
-                bestCoofToEndArr = new List<float>();
 
                 for (int i = 0; i < 500; i++)
                 {
-                    score = 0;
                     deck = ResetDeck(deck);
-                    while (score <= 21)
+                    while(score <= 21)
                     {
-                        Card MCCardTry = new Card(0);
-                        do
+                        Card MCCardTry = DrawCard(deck);
+                        score += MCCardTry.value;
+                        if(score + MCCardTry.value >= 21)
                         {
-                            MCCardTry.value = random.Next(1, 11);
-                        }
-                        while (!deck.Contains(MCCardTry));
-
-                        deck.Remove(MCCardTry);
-                        if ((score + MCCardTry.value) > 21)
-                        {
-                            bestCoofToEndArr.Add(deck.Count/DeckSum(deck));
                             bestScoreToEndArr.Add(score);
                             break;
                         }
-                        else { score += MCCardTry.value; }
                     }
+                    score = 0;
                 }
-
-            score = 0;
                 bestScoreToEnd = FindMostFrequent(bestScoreToEndArr);
-                bestCoofToEnd = FindMostFrequent(bestCoofToEndArr);
-                Console.WriteLine("Лучший счёт для Монте-Карло: " + bestScoreToEnd + " " + bestCoofToEnd);
+                Console.WriteLine("Лучший счёт для Монте-Карло: " + bestScoreToEnd);
             }
             public override string State(int score, List<Card> deck)
             {
@@ -79,7 +67,7 @@ namespace ConsoleApp1
                 {
                     return "Lost";
                 }
-                if ( score >= bestScoreToEnd || (bestCoofToEnd <= (deck.Count / DeckSum(deck))) )
+                if (score >= bestScoreToEnd)
                 {
                     return "Stopped";
                 }
@@ -89,6 +77,38 @@ namespace ConsoleApp1
                 }
             }
 
+            public override string GetName()
+            {
+                return name;
+            }
+        }
+
+        public class RandomPlayer : Player
+        {
+            private Random random = new Random();
+            private int scoreToEnd;
+
+            public new string name = "Рандом";
+            public RandomPlayer() { }
+            public void SetRandom()
+            {
+                scoreToEnd = random.Next(22);
+            }
+            public override string State(int score, List<Card> deck)
+            {
+                if (score > 21)
+                {
+                    return "Lost";
+                }
+                if (score >= scoreToEnd)
+                {
+                    return "Stopped";
+                }
+                else
+                {
+                    return "NotStopped";
+                }
+            }
             public override string GetName()
             {
                 return name;
@@ -184,41 +204,30 @@ namespace ConsoleApp1
                     Thread.Sleep(100);
                     if (player2.State(player2.score, deck) == "NotStopped")
                     {
-                        Card player2CardTry = new Card(0);
-                        do
-                        {
-                            player2CardTry.value = random.Next(1, 11);
-                        }
-                        while (!deck.Contains(player2CardTry));
+                        Card player2CardTry = DrawCard(deck);
                         //Console.WriteLine("Монте-Карло вытянул " + player2CardTry.value);
-                        deck.Remove(player2CardTry);
                         player2.score += player2CardTry.value;
                     }
-                    if (playerDealer.State(playerDealer.score, deck) == "NotStopped")
-                    {
-                        Card DealerCardTry = new Card(0);
-                        do
-                        {
-                            DealerCardTry.value = random.Next(1, 11);
-                        }
-                        while (!deck.Contains(DealerCardTry));  
-                        //Console.WriteLine("Дилер вытянул " + DealerCardTry.value);
-                        deck.Remove(DealerCardTry);
-                        playerDealer.score += DealerCardTry.value;
-                    }
-                    if (playerDealer.State(playerDealer.score, deck) == "Lost" && (player2.State(player2.score, deck) != "Lost"))
-                    {
-                        Console.WriteLine("У Дилера больше 21. Монте-Карло побеждает");
-                        ResetScores();
-                        return 1;
-                    }
-                    else if (playerDealer.State(playerDealer.score, deck) != "Lost" && (player2.State(player2.score, deck) == "Lost"))
+                    if (player2.State(player2.score, deck) == "Lost")
                     {
                         Console.WriteLine("У Монте-Карло больше 21. Дилер побеждает");
                         ResetScores();
                         return 2;
                     }
-                    else if(playerDealer.score > player2.score && (player2.State(player2.score, deck) == "Stopped" && (playerDealer.State(playerDealer.score, deck) == "Stopped")))
+
+                    if (playerDealer.State(playerDealer.score, deck) == "NotStopped")
+                    {
+                        Card DealerCardTry = DrawCard(deck);
+                        //Console.WriteLine("Дилер вытянул " + DealerCardTry.value);
+                        playerDealer.score += DealerCardTry.value;
+                    }
+                    if (playerDealer.State(playerDealer.score, deck) == "Lost")
+                    {
+                        Console.WriteLine("У Дилера больше 21. Монте-Карло побеждает");
+                        ResetScores();
+                        return 1;
+                    }
+                    else if (playerDealer.score > player2.score && (player2.State(player2.score, deck) == "Stopped" && (playerDealer.State(playerDealer.score, deck) == "Stopped")))
                     {
                         Console.WriteLine("Дилер побеждает со счётом " + playerDealer.score + " (Монте-Карло: " + player2.score + ")");
                         ResetScores();
@@ -230,7 +239,7 @@ namespace ConsoleApp1
                         ResetScores();
                         return 1;
                     }
-                    else if (player2.score == playerDealer.score)
+                    else if (player2.score == playerDealer.score || (player2.State(player2.score, deck) == "Lost" && playerDealer.State(playerDealer.score, deck) == "Lost"))
                     {
                         Console.WriteLine("Ничья");
                         ResetScores();
@@ -239,6 +248,28 @@ namespace ConsoleApp1
                 }
             }
             public int GetScore() { return playerDealer.score; }
+        }
+
+        static Card DrawCard(List<Card> deck)
+        {
+            Random random = new Random();
+            int index = random.Next(deck.Count);
+            Card card = deck[index];
+            deck.RemoveAt(index);
+            return card;
+        }
+
+        static List<Card> ResetDeck()
+        {
+            List<Card> deck = new List<Card>();
+            for (int i = 1; i<=13; i++)
+            {
+                for(int j = 0; j< 4; j++)
+                {
+                    deck.Add(new Card(i > 10 ? 10 : 1));
+                }
+            }
+            return deck;
         }
 
         static float FindMostFrequent(List<float> numbers)
@@ -308,7 +339,7 @@ namespace ConsoleApp1
         }
         static void Main(string[] args)
         {
-            const int gameCount = 50;
+            const int gameCount = 20;
             float player1Win = 0;
             float playerDealerWin = 0;
             float drawCount = 0;
@@ -318,7 +349,6 @@ namespace ConsoleApp1
             Player player2 = new MonteCarloPlayer();
             Game game = new Game(playerDealer,player2);
             //Console.WriteLine(string.Join(" ", game.deck.Select(x => x.value)));
-
             for(int i = 0; i< gameCount; i++)
             {
                 game.ResetDeck_();
@@ -327,6 +357,48 @@ namespace ConsoleApp1
                 if (player2 is MonteCarloPlayer monteCarloPlayer)
                 {
                     monteCarloPlayer.Train();
+                }
+                switch (game.GetMoves())
+                {
+                    case 1:
+                        player1Win++;
+                        break;
+                    case 2:
+                        playerDealerWin++;
+                        break;
+                    case 0:
+                        drawCount++;
+                        break;
+                    default:
+                        errorCount++;
+                        break;
+                }
+                //Console.WriteLine(string.Join(" ", game.deck.Select(x => x.value)));
+                Console.WriteLine("\n");
+            }
+            Console.WriteLine("Процент побед: " + player2.GetName() + " " + player1Win / gameCount * 100);
+            Console.WriteLine("Процент побед: " + playerDealer.GetName() + " " + playerDealerWin / gameCount * 100);
+            Console.WriteLine("Процент ничей: " + drawCount / gameCount * 100);
+            Console.WriteLine("Процент ошибок: " + errorCount / gameCount * 100);
+
+
+            player1Win = 0;
+            playerDealerWin = 0;
+            drawCount = 0;
+            errorCount = 0;
+
+            player2 = new RandomPlayer();
+
+            game = new Game(playerDealer, player2);
+            //Console.WriteLine(string.Join(" ", game.deck.Select(x => x.value)));
+            for (int i = 0; i < gameCount; i++)
+            {
+                game.ResetDeck_();
+                //Console.WriteLine(string.Join(" ", game.deck.Select(x => x.value)));
+                Console.WriteLine("Игра " + (i + 1));
+                if (player2 is RandomPlayer randomPlayer)
+                {
+                    randomPlayer.SetRandom();
                 }
                 switch (game.GetMoves())
                 {
